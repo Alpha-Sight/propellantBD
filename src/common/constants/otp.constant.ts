@@ -1,2 +1,0 @@
-export const OTP_EXPIRATION_TIME_IN_SECONDS = 600;
-export const OTP_EXPIRATION_TIME_IN_WORDS = '10 minutes';
