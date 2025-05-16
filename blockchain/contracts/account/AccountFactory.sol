@@ -2,6 +2,7 @@
 pragma solidity ^0.8.23;
 
 import "./PropellantBDAccount.sol";
+import "../interfaces/IEntryPoint.sol";
 import "@openzeppelin/contracts/utils/Create2.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "../modules/UserProfileModule.sol";
@@ -30,7 +31,9 @@ contract PropellantBDAccountFactory is Ownable {
      * @param _entryPoint The EntryPoint contract address
      * @param _profileModule The UserProfileModule contract address
      */
-    constructor(IEntryPoint _entryPoint, UserProfileModule _profileModule) {
+    constructor(IEntryPoint _entryPoint, UserProfileModule _profileModule) 
+        Ownable(msg.sender) // Fix: Pass msg.sender as initialOwner to Ownable
+    {
         require(address(_entryPoint) != address(0), "AccountFactory: entryPoint is zero address");
         require(address(_profileModule) != address(0), "AccountFactory: profileModule is zero address");
         

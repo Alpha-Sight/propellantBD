@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
-import "@account-abstraction/contracts/core/BasePaymaster.sol";
+import "../interfaces/IPaymaster.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "../modules/UserProfileModule.sol";
@@ -61,7 +61,8 @@ contract PropellantBDPaymaster is BasePaymaster, Ownable {
         RoleModule _roleModule,
         IERC20 _token
     ) 
-        BasePaymaster(_entryPoint) 
+        BasePaymaster(_entryPoint)
+        Ownable(msg.sender) // Fix: Pass msg.sender as initialOwner to Ownable
     {
         require(address(_profileModule) != address(0), "Paymaster: profileModule is zero address");
         require(address(_roleModule) != address(0), "Paymaster: roleModule is zero address");
@@ -77,10 +78,6 @@ contract PropellantBDPaymaster is BasePaymaster, Ownable {
     
     /**
      * @dev Validates a user operation request for sponsorship
-     * @param userOp The user operation to validate
-     * @param userOpHash Hash of the user operation
-     * @param maxCost Maximum cost of the operation
-     * @return context Context data to be passed to postOp
      */
     function _validatePaymasterUserOp(
         UserOperation calldata userOp,
@@ -125,12 +122,9 @@ contract PropellantBDPaymaster is BasePaymaster, Ownable {
     
     /**
      * @dev Post-operation handling, called after the user operation has been executed
-     * @param mode The mode of the post operation
-     * @param context Context returned by validatePaymasterUserOp
-     * @param actualGasCost The actual gas cost of the operation
      */
     function _postOp(
-        PostOpMode mode,
+        IEntryPoint.PostOpMode mode,  // FIXED: Added IEntryPoint namespace
         bytes calldata context,
         uint256 actualGasCost
     ) 
@@ -141,7 +135,7 @@ contract PropellantBDPaymaster is BasePaymaster, Ownable {
         (address sender, uint256 maxCost) = abi.decode(context, (address, uint256));
         
         // If the operation reverted, we might need to refund some of the daily usage
-        if (mode == PostOpMode.postOpReverted) {
+        if (mode == IEntryPoint.PostOpMode.opReverted) {  // FIXED: Added IEntryPoint namespace
             // In case of revert, we still charge for the validation gas but not the execution gas
             // This is a simplified approach - in production, you might want a more precise calculation
             uint256 refund = maxCost - actualGasCost;

@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
-import "@account-abstraction/contracts/core/BaseAccount.sol";
-import "@account-abstraction/contracts/interfaces/UserOperation.sol";
+import "../interfaces/IAccount.sol";
+import "../interfaces/UserOperation.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
+import "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 import "../modules/UserProfileModule.sol";
 
 /**
@@ -14,12 +15,9 @@ import "../modules/UserProfileModule.sol";
  * Based on ERC-4337 BaseAccount with integration to the PropellantBD profile system.
  */
 contract PropellantBDAccount is BaseAccount, Initializable {
-    using ECDSA for bytes32;
+    using ECDSA for bytes32; // Define usage of ECDSA for bytes32
     using Address for address;
 
-    // The EntryPoint contract reference
-    IEntryPoint private immutable _entryPoint;
-    
     // The owner of this account
     address private _owner;
     
@@ -55,10 +53,10 @@ contract PropellantBDAccount is BaseAccount, Initializable {
      * @param entryPointAddr The EntryPoint contract address
      * @param profileModuleAddr The UserProfileModule contract address
      */
-    constructor(IEntryPoint entryPointAddr, UserProfileModule profileModuleAddr) {
-        require(address(entryPointAddr) != address(0), "PropellantBDAccount: entryPoint is zero address");
+    constructor(IEntryPoint entryPointAddr, UserProfileModule profileModuleAddr) 
+        BaseAccount(entryPointAddr)
+    {
         require(address(profileModuleAddr) != address(0), "PropellantBDAccount: profile module is zero address");
-        _entryPoint = entryPointAddr;
         _profileModule = profileModuleAddr;
     }
     
@@ -101,26 +99,24 @@ contract PropellantBDAccount is BaseAccount, Initializable {
     /**
      * @dev Implements the ERC-4337 validation logic
      */
-    function _validateSignature(UserOperation calldata userOp, bytes32 userOpHash) 
+    function _validateSignature(
+        UserOperation calldata userOp, 
+        bytes32 userOpHash
+    ) 
         internal 
         virtual 
         override 
         returns (uint256) 
     {
-        bytes32 hash = userOpHash.toEthSignedMessageHash();
+        // Use MessageHashUtils for toEthSignedMessageHash
+        bytes32 hash = MessageHashUtils.toEthSignedMessageHash(userOpHash);
+        
         // If signer is owner, return 0 (valid signature)
-        if (_owner == hash.recover(userOp.signature)) {
+        if (_owner == ECDSA.recover(hash, userOp.signature)) {
             return 0;
         }
         // Otherwise return 1 (invalid signature)
         return 1;
-    }
-    
-    /**
-     * @dev Implements the BaseAccount entryPoint accessor
-     */
-    function entryPoint() public view override returns (IEntryPoint) {
-        return _entryPoint;
     }
     
     /**
@@ -205,7 +201,18 @@ contract PropellantBDAccount is BaseAccount, Initializable {
         returns (bytes memory result) 
     {
         (bool success, bytes memory returndata) = target.call{value: value}(data);
-        Address.verifyCallResult(success, returndata, "PropellantBDAccount: execution failed");
+        if (!success) {
+            // If the call failed, revert with the error message if any
+            if (returndata.length > 0) {
+                // The assembly block extracts the revert reason from returndata
+                assembly {
+                    let returndata_size := mload(returndata)
+                    revert(add(32, returndata), returndata_size)
+                }
+            } else {
+                revert("PropellantBDAccount: execution failed");
+            }
+        }
         return returndata;
     }
     
@@ -222,7 +229,19 @@ contract PropellantBDAccount is BaseAccount, Initializable {
         for (uint256 i = 0; i < calls.length; i++) {
             Call calldata call = calls[i];
             (bool success, bytes memory result) = call.target.call{value: call.value}(call.data);
-            Address.verifyCallResult(success, result, "PropellantBDAccount: batch execution failed");
+            
+            // Replace verifyCallResult with direct error handling
+            if (!success) {
+                // If there's return data, it contains the revert reason
+                if (result.length > 0) {
+                    assembly {
+                        let returndata_size := mload(result)
+                        revert(add(32, result), returndata_size)
+                    }
+                } else {
+                    revert("PropellantBDAccount: batch execution failed");
+                }
+            }
         }
     }
     

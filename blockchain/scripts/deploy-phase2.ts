@@ -53,7 +53,7 @@ async function main() {
   
   // Deposit the funded ETH to the EntryPoint
   console.log("Depositing ETH to EntryPoint...");
-  await paymaster.deposit({ value: ethers.parseEther("0.1") });
+  await paymaster.deposit({ value: ethers.parseEther("0.01") });
   console.log("ETH deposited to EntryPoint successfully");
   
   // Log all deployment addresses for reference
