@@ -43,17 +43,17 @@ async function main() {
   const paymasterAddress = await paymaster.getAddress();
   console.log(`Paymaster deployed to: ${paymasterAddress}`);
   
-  // Fund the paymaster with some ETH to sponsor transactions
-  console.log("Funding Paymaster with initial ETH...");
-  await deployer.sendTransaction({
-    to: paymasterAddress,
-    value: ethers.parseEther("0.1")
-  });
-  console.log("Paymaster funded successfully");
+  // Comment out or remove the direct funding
+  // console.log("Funding Paymaster with initial ETH...");
+  // await deployer.sendTransaction({
+  //   to: paymasterAddress,
+  //   value: ethers.parseEther("0.1")
+  // });
+  // console.log("Paymaster funded successfully");
   
-  // Deposit the funded ETH to the EntryPoint
-  console.log("Depositing ETH to EntryPoint...");
-  await paymaster.deposit({ value: ethers.parseEther("0.01") });
+  // Try just the deposit function with a smaller amount
+  console.log("Depositing ETH to EntryPoint via Paymaster...");
+  await paymaster.deposit({ value: ethers.parseEther("0.02") });
   console.log("ETH deposited to EntryPoint successfully");
   
   // Log all deployment addresses for reference
