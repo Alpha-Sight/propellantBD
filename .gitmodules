@@ -1,0 +1,3 @@
+[submodule "propellant-backend"]
+	path = propellant-backend
+	url = https://github.com/Alpha-Sight/propellant-backend.git
