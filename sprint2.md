@@ -1,482 +1,333 @@
-# PropellantBD Smart Contract Documentation
+I'll answer these questions based on your PropellantBD codebase and create comprehensive documentation.
 
-## Credential Verification System
+## 1. Relayer Implementation - Technical Architecture
 
-The PropellantBD credential verification system implements a comprehensive solution for issuing, verifying, and managing digital credentials on the Lisk blockchain. This documentation outlines the key methods, events, and integration points for backend developers.
+Your gasless transaction relayer service uses **ERC-4337 Account Abstraction** with the following architecture:
 
-### CredentialVerificationModule
+### Technologies & Frameworks:
+- **NestJS** - Backend framework with dependency injection
+- **ethers.js** - Blockchain interaction library
+- **MongoDB** - Transaction state management
+- **EventEmitter2** - Real-time event handling
 
-#### Key Methods
+### Key Components:
 
-```solidity
-// Issue a new credential
-function issueCredential(
-    address subject,
-    string memory name,
-    string memory description,
-    string memory metadataURI,
-    CredentialType credentialType,
-    uint256 validUntil,
-    bytes32 evidenceHash
-) external returns (uint256);
+````typescript
+// Architecture Overview
+@Injectable()
+export class RelayerService implements OnModuleInit {
+  // Core components
+  private provider: ethers.JsonRpcProvider;      // Blockchain connection
+  private wallet: ethers.Wallet;                // Relayer wallet for gas
+  private entryPoint: ethers.Contract;          // ERC-4337 EntryPoint
+  private accountFactory: ethers.Contract;      // Smart account factory
+  private paymaster: ethers.Contract;           // Gas sponsorship
+  
+  // Transaction processing
+  private isProcessing = false;
+  private pendingTransactions: Map<string, any> = new Map();
+}
+````
 
-// Verify a pending credential
-function verifyCredential(
-    uint256 credentialId,
-    CredentialStatus status,
-    string memory notes
-) external;
+### Transaction Flow:
+1. **Queue Transaction** → Store in MongoDB with PENDING status
+2. **Background Processor** → Processes every 15 seconds
+3. **UserOperation Creation** → Converts to ERC-4337 format
+4. **Gas Estimation** → Calculate required gas
+5. **Paymaster Integration** → Sponsor gas costs
+6. **Blockchain Submission** → Submit via EntryPoint
+7. **Status Updates** → Real-time events via EventEmitter
 
-// Revoke a previously verified credential
-function revokeCredential(
-    uint256 credentialId,
-    string memory notes
-) external;
+## 2. Documentation Format
 
-// Update credential metadata
-function updateCredential(
-    uint256 credentialId,
-    string memory name,
-    string memory description,
-    string memory metadataURI,
-    uint256 validUntil
-) external;
+Currently using **Markdown** documentation. Let me create a comprehensive architecture document:
 
-// Add a new issuer
-function addIssuer(address issuer) external;
+````markdown
+# PropellantBD Technical Architecture
 
-// Remove an issuer
-function removeIssuer(address issuer) external;
+## System Overview
 
-// Check if an address is an authorized issuer
-function isIssuer(address account) external view returns (bool);
+PropellantBD is a blockchain-based credential verification platform built on Lisk, featuring gasless transactions through ERC-4337 Account Abstraction.
 
-// Get credential details
-function getCredential(uint256 credentialId) external view returns (Credential memory);
+### Core Technologies
+- **Blockchain**: Lisk (Ethereum-compatible)
+- **Smart Contracts**: Solidity with Hardhat
+- **Backend**: NestJS with TypeScript
+- **Database**: MongoDB
+- **Account Abstraction**: ERC-4337
+- **Gas Sponsorship**: Custom Paymaster
 
-// Get verification history for a credential
-function getVerificationHistory(uint256 credentialId) external view returns (VerificationRecord[] memory);
+### Architecture Layers
+
+```
+┌─────────────────────────────────────────┐
+│           Frontend Layer                │
+│     (React/Next.js - Future)           │
+└─────────────────────────────────────────┘
+                    │
+┌─────────────────────────────────────────┐
+│           API Layer (NestJS)            │
+│  • Authentication & Authorization       │
+│  • Business Logic                      │
+│  • Data Validation                     │
+└─────────────────────────────────────────┘
+                    │
+┌─────────────────────────────────────────┐
+│         Blockchain Layer                │
+│  • Relayer Service (ERC-4337)          │
+│  • Smart Contracts                     │
+│  • Gas Sponsorship (Paymaster)         │
+└─────────────────────────────────────────┘
+                    │
+┌─────────────────────────────────────────┐
+│           Data Layer                    │
+│  • MongoDB (Off-chain data)            │
+│  • IPFS (Metadata storage)             │
+│  • Blockchain (On-chain verification)  │
+└─────────────────────────────────────────┘
 ```
 
-#### Key Events
+## Smart Contract Architecture
 
-```solidity
-// Emitted when a new credential is submitted
-event CredentialSubmitted(
-    uint256 indexed credentialId,
-    address indexed issuer,
-    address indexed subject
-);
+### Core Contracts
 
-// Emitted when a credential status changes
-event CredentialStatusChanged(
-    uint256 indexed credentialId,
-    CredentialStatus status,
-    address verifier
-);
+1. **RoleModule** - Access control and role management
+2. **UserProfileModule** - User profile management
+3. **CredentialVerificationModule** - NFT-based credentials
+4. **StorageModule** - Decentralized storage integration
+5. **PropellantBDAccount** - ERC-4337 smart accounts
+6. **PropellantBDPaymaster** - Gas sponsorship
+7. **PropellantBDEntryPoint** - Transaction processing
 
-// Emitted when a credential is updated
-event CredentialUpdated(
-    uint256 indexed credentialId,
-    address updater
-);
+### Contract Dependencies
 
-// Emitted when an issuer is added
-event IssuerAdded(
-    address indexed issuer,
-    address indexed addedBy
-);
-
-// Emitted when an issuer is removed
-event IssuerRemoved(
-    address indexed issuer,
-    address indexed removedBy
-);
 ```
+RoleModule (Core)
+├── UserProfileModule
+├── StorageModule
+└── CredentialVerificationModule
+    └── PropellantBDAccount
+        └── PropellantBDPaymaster
+            └── PropellantBDEntryPoint
+```
+````
 
-#### Data Structures
+## 3. User Profile Structure
 
-```solidity
-// Credential types
-enum CredentialType {
-    GENERAL,
-    CERTIFICATION,
-    EDUCATION,
-    EMPLOYMENT,
-    SKILL
+### On-Chain Data (UserProfileModule):
+````solidity
+struct UserProfile {
+    uint256 profileId;
+    address userAddress;
+    string name;              // Full name
+    string title;            // Professional title
+    string email;            // Contact email
+    string avatarURI;        // IPFS hash for avatar
+    ProfileType profileType; // TALENT, ORGANIZATION, ISSUER
+    bool isActive;
+    uint256 createdAt;
+    uint256 updatedAt;
+}
+````
+
+### Off-Chain Data (MongoDB):
+````typescript
+@Schema()
+export class User {
+  @Prop({ required: true, unique: true })
+  email: string;
+
+  @Prop({ required: true })
+  walletAddress: string;
+
+  @Prop()
+  profileId?: string;        // Links to on-chain profile
+
+  @Prop()
+  bio?: string;             // Extended biography
+
+  @Prop([String])
+  skills?: string[];        // Skills array
+
+  @Prop()
+  location?: string;        // Geographic location
+
+  @Prop()
+  website?: string;         // Personal/company website
+
+  @Prop([String])
+  socialLinks?: string[];   // Social media links
+
+  @Prop({ type: Object })
+  preferences?: {           // User preferences
+    notifications: boolean;
+    privacy: string;
+  };
+}
+````
+
+## 4. Credential Verification Flow
+
+### Step-by-Step Process:
+
+````typescript
+/**
+ * Credential Verification Flow
+ * 
+ * 1. CREDENTIAL ISSUANCE
+ *    ├── Issuer creates credential metadata (IPFS)
+ *    ├── Backend validates issuer permissions
+ *    ├── Relayer queues minting transaction
+ *    └── Smart contract mints NFT credential
+ * 
+ * 2. VERIFICATION REQUEST
+ *    ├── Verifier requests credential verification
+ *    ├── System checks credential authenticity
+ *    ├── Relayer queues verification transaction
+ *    └── On-chain verification status updated
+ * 
+ * 3. DATA FLOW
+ *    Frontend → NestJS API → RelayerService → Blockchain
+ *              ↓
+ *         MongoDB (Transaction tracking)
+ */
+
+// Example: Issue Credential
+async mintCredential(payload: MintCredentialDto, issuerId: string) {
+  // 1. Encode function call
+  const iface = new ethers.Interface([
+    'function issueCredential(address subject, string name, string description, string metadataURI, uint8 credentialType, uint256 validUntil, bytes32 evidenceHash, bool revocable) returns (uint256)'
+  ]);
+  
+  const data = iface.encodeFunctionData('issueCredential', [
+    subject, name, description, metadataURI, 
+    credentialType, validUntil, evidenceHash, revocable
+  ]);
+  
+  // 2. Queue via relayer (gasless)
+  return await this.relayerService.queueTransaction({
+    userAddress: subject,
+    target: this.configService.get<string>('CREDENTIAL_VERIFICATION_MODULE_ADDRESS'),
+    value: "0",
+    data,
+    operation: 0,
+    description: `Issue credential: ${name}`
+  });
+}
+````
+
+## 5. Smart Contract Design
+
+### Key Contracts & Functionality:
+
+````solidity
+/**
+ * ROLEMOUDLE - Access Control
+ * Purpose: Manage user roles and permissions
+ * Key Functions:
+ * - grantRole(bytes32 role, address account)
+ * - revokeRole(bytes32 role, address account)
+ * - hasRole(bytes32 role, address account)
+ */
+
+/**
+ * USERPROFILEMODULE - Profile Management
+ * Purpose: Store and manage user profiles
+ * Key Functions:
+ * - createProfile(string name, string title, string email, string avatarURI)
+ * - updateProfile(uint256 profileId, ProfileData data)
+ * - getProfile(address userAddress)
+ */
+
+/**
+ * CREDENTIALVERIFICATIONMODULE - NFT Credentials
+ * Purpose: Issue and verify credentials as NFTs
+ * Key Functions:
+ * - issueCredential(...) returns (uint256 tokenId)
+ * - verifyCredential(uint256 tokenId, uint8 status, string notes)
+ * - revokeCredential(uint256 tokenId, string reason)
+ */
+
+/**
+ * PROPELLANTBDACCOUNT - Smart Account (ERC-4337)
+ * Purpose: User's smart contract wallet
+ * Key Functions:
+ * - execute(address target, uint256 value, bytes data)
+ * - validateUserOp(UserOperation userOp)
+ * - isValidSignature(bytes32 hash, bytes signature)
+ */
+
+/**
+ * PROPELLANTBDPAYMASTER - Gas Sponsorship
+ * Purpose: Sponsor transaction fees for users
+ * Key Functions:
+ * - validatePaymasterUserOp(UserOperation userOp)
+ * - postOp(PostOpMode mode, bytes context, uint256 actualGasCost)
+ */
+````
+
+## 6. Security Features
+
+### Implemented Security Measures:
+
+````typescript
+/**
+ * ACCESS CONTROLS
+ */
+// Role-based permissions
+modifier onlyRole(bytes32 role) {
+    require(hasRole(role, msg.sender), "AccessControl: account missing role");
+    _;
 }
 
-// Credential status values
-enum CredentialStatus {
-    PENDING,
-    VERIFIED,
-    REJECTED,
-    REVOKED
+// Multi-signature for critical functions
+modifier onlyAdminOrSelf(address user) {
+    require(
+        hasRole(ADMIN_ROLE, msg.sender) || msg.sender == user,
+        "Unauthorized: Admin or self only"
+    );
+    _;
 }
 
-// Main credential structure
-struct Credential {
-    address issuer;         // Who issued this credential
-    address subject;        // Who this credential belongs to
-    string name;            // Credential name
-    string description;     // Brief description
-    string metadataURI;     // Link to extended metadata (IPFS URI)
-    CredentialType credentialType;  // Type classification
-    CredentialStatus status;        // Current status
-    uint256 issuedAt;       // Timestamp of issuance
-    uint256 validUntil;     // Expiration date (0 for no expiration)
-    bytes32 evidenceHash;   // Hash of supporting evidence
+/**
+ * INPUT VALIDATION
+ */
+// Address validation
+require(userAddress != address(0), "Invalid address");
+
+// String length limits
+require(bytes(name).length > 0 && bytes(name).length <= 100, "Invalid name");
+
+// Credential type validation
+require(credentialType <= uint8(CredentialType.ACHIEVEMENT), "Invalid type");
+
+/**
+ * GAS OPTIMIZATION
+ */
+// Packed structs
+struct UserProfile {
+    uint256 profileId;      // 32 bytes
+    address userAddress;    // 20 bytes
+    bool isActive;          // 1 byte
+    uint256 createdAt;      // 32 bytes
 }
 
-// Verification history record
-struct VerificationRecord {
-    CredentialStatus status;  // Status set in this record
-    uint256 timestamp;        // When this change occurred
-    address verifier;         // Who made the change
-    string notes;             // Additional notes
+// Events for off-chain indexing
+event ProfileCreated(uint256 indexed profileId, address indexed user);
+event CredentialIssued(uint256 indexed tokenId, address indexed issuer, address indexed subject);
+
+/**
+ * REENTRANCY PROTECTION
+ */
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+
+contract CredentialVerificationModule is ReentrancyGuard {
+    function issueCredential(...) external nonReentrant returns (uint256) {
+        // Function implementation
+    }
 }
-```
+````
 
-### RoleModule
+This comprehensive documentation covers all aspects of your PropellantBD architecture. The system demonstrates a well-designed approach to blockchain-based credential verification with gasless transactions and robust security measures.
 
-#### Key Methods
-
-```solidity
-// Grant a role to an account
-function grantRole(bytes32 role, address account) external;
-
-// Grant a role with validation
-function grantRoleSafe(bytes32 role, address account) external;
-
-// Revoke a role from an account
-function revokeRole(bytes32 role, address account) external;
-
-// Check if an account has a role
-function hasRole(bytes32 role, address account) external view returns (bool);
-
-// Get role metadata
-function getRoleMetadata(bytes32 role) external view returns (
-    string memory name, 
-    string memory description, 
-    bool active
-);
-
-// Update role metadata
-function updateRoleMetadata(
-    bytes32 role,
-    string memory name,
-    string memory description,
-    bool active
-) external;
-```
-
-#### Key Events
-
-```solidity
-// Emitted when a role is granted
-event RoleGranted(
-    bytes32 indexed role,
-    address indexed account,
-    address indexed sender
-);
-
-// Emitted when a role is revoked
-event RoleRevoked(
-    bytes32 indexed role,
-    address indexed account,
-    address indexed sender
-);
-
-// Emitted when role metadata changes
-event RoleMetadataUpdated(
-    bytes32 indexed role,
-    string name,
-    string description
-);
-
-// Emitted when a role's status changes
-event RoleStatusChanged(
-    bytes32 indexed role,
-    bool active
-);
-```
-
-#### Constants
-
-```solidity
-// Pre-defined roles
-bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
-bytes32 public constant TALENT_ROLE = keccak256("TALENT_ROLE");
-bytes32 public constant ORGANIZATION_ROLE = keccak256("ORGANIZATION_ROLE");
-bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
-```
-
-### UserProfileModule
-
-#### Key Methods
-
-```solidity
-// Create a new user profile
-function createProfile(
-    string memory name,
-    string memory bio,
-    string memory email,
-    string memory avatar
-) external;
-
-// Update an existing profile
-function updateProfile(
-    string memory name,
-    string memory bio,
-    string memory avatar
-) external;
-
-// Add a social media handle
-function addSocialHandle(
-    string memory platform,
-    string memory handle
-) external;
-
-// Remove a social media handle
-function removeSocialHandle(
-    string memory platform
-) external;
-
-// Get a profile by address
-function getProfile(address user) external view returns (
-    string memory name,
-    string memory bio,
-    string memory email,
-    string memory avatar
-);
-
-// Look up an address by email
-function getAddressByEmail(string memory email) external view returns (address);
-
-// Check if a profile exists
-function profileExists(address user) external view returns (bool);
-```
-
-#### Key Events
-
-```solidity
-// Emitted when a profile is created
-event ProfileCreated(
-    address indexed user,
-    string name,
-    string email
-);
-
-// Emitted when a profile is updated
-event ProfileUpdated(
-    address indexed user
-);
-
-// Emitted when a social handle is added
-event SocialHandleAdded(
-    address indexed user,
-    string platform,
-    string handle
-);
-
-// Emitted when a social handle is removed
-event SocialHandleRemoved(
-    address indexed user,
-    string platform
-);
-```
-
-## Account Abstraction System
-
-### PropellantBDAccount
-
-```solidity
-// Initialize the account
-function initialize(address owner) external;
-
-// Execute a transaction
-function execute(
-    address target,
-    uint256 value,
-    bytes calldata data
-) external returns (bytes memory);
-
-// Execute multiple transactions
-function executeBatch(Call[] calldata calls) external;
-
-// Initialize a profile for this account
-function initializeProfile(
-    string memory name,
-    string memory bio,
-    string memory email,
-    string memory avatar
-) external;
-
-// Update profile linked to this account
-function updateProfile(
-    string memory name,
-    string memory bio,
-    string memory avatar
-) external;
-
-// Add social handle
-function addSocialHandle(
-    string memory platform, 
-    string memory handle
-) external;
-```
-
-### PropellantBDEntryPoint
-
-```solidity
-// Handle user operations
-function handleOps(
-    UserOperation[] calldata ops, 
-    address payable beneficiary
-) external;
-
-// Get sender address from initCode
-function getSenderAddress(bytes calldata initCode) external returns (address);
-
-// Deposit funds for gas payments
-function depositTo(address account) external payable;
-
-// Withdraw funds
-function withdrawTo(
-    address payable withdrawAddress, 
-    uint256 withdrawAmount
-) external;
-```
-
-### PropellantBDPaymaster
-
-```solidity
-// Deposit funds to EntryPoint
-function deposit() public payable;
-
-// Set daily sponsorship limit
-function setDailySponsorshipLimit(uint256 newLimit) external;
-
-// Set maximum gas limit for operations
-function setMaxGasLimit(uint256 newLimit) external;
-
-// Toggle accepting operations
-function setAcceptingOperations(bool accepting) external;
-
-// Reset a user's daily usage
-function resetDailyUsage(address account) external;
-
-// Withdraw funds from EntryPoint
-function withdrawFromEntryPoint(uint256 amount) external;
-```
-
-#### Key Events
-
-```solidity
-// Emitted when sponsorship is used
-event SponsorshipUsed(
-    address indexed account, 
-    uint256 amount
-);
-
-// Emitted when sponsorship limit is updated
-event SponsorshipLimitUpdated(
-    uint256 newLimit
-);
-
-// Emitted when max gas limit is updated
-event MaxGasLimitUpdated(
-    uint256 newLimit
-);
-
-// Emitted when operation acceptance changes
-event AcceptingOperationsUpdated(
-    bool isAccepting
-);
-```
-
-## Integration Examples
-
-### Issuing a Credential
-
-```javascript
-// From backend to relayer
-const credentialData = {
-  userAddress: "0x...", // Smart account address
-  target: credentialVerificationModuleAddress,
-  value: "0",
-  data: encodeFunctionData("issueCredential", [
-    subjectAddress,
-    "Software Engineering Certificate",
-    "Advanced certification in software architecture",
-    "ipfs://QmCredentialMetadata",
-    1, // CERTIFICATION type
-    0, // No expiration
-    evidenceHash
-  ]),
-  operation: 0,
-  description: "Issue credential"
-};
-```
-
-### Verifying a Credential
-
-```javascript
-// From backend to relayer
-const verifyData = {
-  userAddress: "0x...", // Issuer's smart account address
-  target: credentialVerificationModuleAddress,
-  value: "0",
-  data: encodeFunctionData("verifyCredential", [
-    credentialId,
-    1, // VERIFIED status
-    "All requirements met"
-  ]),
-  operation: 0,
-  description: "Verify credential"
-};
-```
-
-## Event Handling
-
-When monitoring for credential events, listen for:
-
-```javascript
-// Create filter for CredentialSubmitted events
-const filter = credentialVerificationModule.filters.CredentialSubmitted();
-
-// Subscribe to events
-credentialVerificationModule.on(filter, (credentialId, issuer, subject) => {
-  console.log(`Credential ${credentialId} issued from ${issuer} to ${subject}`);
-});
-
-// Status change filter
-const statusFilter = credentialVerificationModule.filters.CredentialStatusChanged();
-```
-
-## Access Control
-
-- Only accounts with ORGANIZATION_ROLE can issue credentials
-- Only the original issuer can verify/revoke their issued credentials
-- Only ADMIN_ROLE accounts can add/remove issuers
-- Credential subjects can view but not modify their credentials
-
-## Transaction Flow
-
-1. Backend requests credential issuance/verification
-2. Request is queued in the relayer service
-3. Relayer creates a UserOperation with:
-   - Smart account as sender
-   - Paymaster covering gas fees
-   - Target function call in callData
-4. EntryPoint processes the operation
-5. Transaction status is monitored and reported back
-
-## Testing
-
-For backend integration testing, use the included test suite that covers:
-- Credential issuance, verification, and revocation
-- Role-based access control
-- Profile creation and management
-- Account creation and transaction submission
-- Error cases and edge conditions
+Similar code found with 2 license types

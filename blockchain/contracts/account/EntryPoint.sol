@@ -17,6 +17,9 @@ contract PropellantBDEntryPoint is IEntryPoint {
     // Deposits mapping
     mapping(address => uint256) private _deposits;
     
+    // Nonce tracking for accounts
+    mapping(address => mapping(uint192 => uint256)) private _nonces;
+    
     // Events
     event UserOperationEvent(bytes32 indexed userOpHash, address indexed sender, address indexed paymaster, uint256 nonce, bool success, uint256 actualGasCost);
     event Deposited(address indexed account, uint256 totalDeposit);
@@ -116,10 +119,32 @@ contract PropellantBDEntryPoint is IEntryPoint {
         IAccount account = IAccount(userOp.sender);
         account.validateUserOp(userOp, userOpHash, 0);
         
+        // Increment nonce after successful validation
+        _incrementNonce(userOp.sender, 0);
+        
         // Simplified execution - would normally execute the callData on the sender
         bool success = true;
         uint256 actualGasCost = 0; // Simplified
         
         emit UserOperationEvent(userOpHash, userOp.sender, address(0), userOp.nonce, success, actualGasCost);
+    }
+    
+    /**
+     * @dev Get the next nonce for a sender account
+     * @param sender The account address
+     * @param key The nonce key (usually 0)
+     * @return nonce The next nonce value
+     */
+    function getNonce(address sender, uint192 key) external view returns (uint256 nonce) {
+        return _nonces[sender][key];
+    }
+    
+    /**
+     * @dev Increment the nonce for a sender account
+     * @param sender The account address
+     * @param key The nonce key (usually 0)
+     */
+    function _incrementNonce(address sender, uint192 key) internal {
+        _nonces[sender][key]++;
     }
 }

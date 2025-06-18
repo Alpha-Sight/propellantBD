@@ -52,4 +52,12 @@ interface IEntryPoint {
      * @dev Get the sender address from a UserOperation
      */
     function getSenderAddress(bytes calldata initCode) external returns (address);
+
+    /**
+     * @dev Get the next nonce for a sender account
+     * @param sender The account address
+     * @param key The nonce key (usually 0)
+     * @return nonce The next nonce value
+     */
+    function getNonce(address sender, uint192 key) external view returns (uint256 nonce);
 }
