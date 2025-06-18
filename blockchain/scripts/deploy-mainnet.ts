@@ -31,7 +31,7 @@ async function main() {
 
   // Deploy Paymaster
   const Paymaster = await hre.ethers.getContractFactory("PropellantBDPaymaster");
-  const paymaster = await Paymaster.deploy(entryPoint.target, userProfileModule.target);
+  const paymaster = await Paymaster.deploy(entryPoint.target, userProfileModule.target, roleModule.target, hre.ethers.ZeroAddress);
   await paymaster.waitForDeployment();
   console.log(`Paymaster deployed to: ${paymaster.target}`);
 
