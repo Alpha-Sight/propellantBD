@@ -86,6 +86,8 @@ contract CredentialVerificationModule is AccessControl, Pausable {
     event CredentialUpdated(uint256 indexed credentialId, address updater);
     event IssuerAdded(address indexed issuer);
     event IssuerRemoved(address indexed issuer);
+    event CredentialVerified(uint256 indexed credentialId, address verifier, CredentialStatus status);
+    event CredentialRevoked(uint256 indexed credentialId, address revoker);
 
     /**
      * @dev Constructor
@@ -194,5 +196,74 @@ contract CredentialVerificationModule is AccessControl, Pausable {
      */
     function unpause() external onlyRole(DEFAULT_ADMIN_ROLE) {
         _unpause();
+    }
+
+    /**
+     * @dev Verify or update the status of a credential
+     */
+    function verifyCredential(
+        uint256 credentialId,
+        CredentialStatus status,
+        string memory notes
+    ) external {
+        Credential storage credential = _credentials[credentialId];
+        require(credential.id != 0, "CredentialVerification: credential does not exist");
+        
+        // SECURITY FIX: Only the original issuer or a contract admin can verify.
+        // This is more secure and resolves the permission bug.
+        require(
+            credential.issuer == msg.sender || hasRole(DEFAULT_ADMIN_ROLE, msg.sender),
+            "CredentialVerification: caller is not the original issuer or an admin"
+        );
+        
+        credential.status = status;
+        credential.verifiedAt = block.timestamp;
+        credential.verifier = msg.sender;
+        
+        // Add to verification history
+        _verificationHistory[credentialId].push(VerificationRecord({
+            status: status,
+            timestamp: block.timestamp,
+            verifier: msg.sender,
+            notes: notes
+        }));
+        
+        emit CredentialVerified(credentialId, msg.sender, status);
+    }
+
+    /**
+     * @dev Revoke a credential
+     */
+    function revokeCredential(uint256 credentialId) external {
+        Credential storage credential = _credentials[credentialId];
+        require(credential.id != 0, "CredentialVerification: credential does not exist");
+        require(credential.revocable, "CredentialVerification: credential is not revocable");
+        
+        // Only the issuer or an admin can revoke
+        require(
+            credential.issuer == msg.sender || hasRole(DEFAULT_ADMIN_ROLE, msg.sender),
+            "CredentialVerification: caller is not the issuer or an admin"
+        );
+        
+        credential.status = CredentialStatus.REVOKED;
+        credential.verifiedAt = block.timestamp;
+        credential.verifier = msg.sender;
+        
+        // Add to verification history
+        _verificationHistory[credentialId].push(VerificationRecord({
+            status: CredentialStatus.REVOKED,
+            timestamp: block.timestamp,
+            verifier: msg.sender,
+            notes: "Credential revoked"
+        }));
+        
+        emit CredentialRevoked(credentialId, msg.sender);
+    }
+
+    /**
+     * @dev Get the verification history of a credential
+     */
+    function getVerificationHistory(uint256 credentialId) external view returns (VerificationRecord[] memory) {
+        return _verificationHistory[credentialId];
     }
 }
